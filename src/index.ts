@@ -33,8 +33,7 @@ export default {
     const path = url.pathname;
 
     // ── OAuth metadata discovery ──────────────────────────────────────────────
-    if (path === "/.well-known/oauth-authorization-server" || 
-        path === "/.well-known/oauth-protected-resource") {
+    if (path === "/.well-known/oauth-authorization-server") {
       return Response.json({
         issuer: WORKER_BASE_URL,
         authorization_endpoint: `${WORKER_BASE_URL}/authorize`,
@@ -44,6 +43,14 @@ export default {
         grant_types_supported: ["authorization_code"],
         code_challenge_methods_supported: ["S256"],
         token_endpoint_auth_methods_supported: ["none"],
+      });
+    }
+
+    if (path === "/.well-known/oauth-protected-resource") {
+      return Response.json({
+        resource: `${WORKER_BASE_URL}/mcp`,
+        authorization_servers: [WORKER_BASE_URL],
+        bearer_methods_supported: ["header"],
       });
     }
 
@@ -159,11 +166,13 @@ export default {
         });
       }
 
-      // Forward to n8n MCP webhook
+      // Forward to n8n MCP webhook (strip our auth token — n8n doesn't know it)
       const proxyUrl = N8N_MCP_URL + (path.replace("/mcp", "") || "");
+      const proxyHeaders = new Headers(request.headers);
+      proxyHeaders.delete("Authorization");
       const proxyRequest = new Request(proxyUrl, {
         method: request.method,
-        headers: request.headers,
+        headers: proxyHeaders,
         body: request.body,
       });
 
