@@ -176,7 +176,9 @@ export default {
         body: request.body,
       });
 
-      return fetch(proxyRequest);
+      const proxyResponse = await fetch(proxyRequest);
+      console.log(`n8n response: ${proxyResponse.status} ${proxyResponse.statusText}`);
+      return proxyResponse;
     }
 
     return new Response("Not found", { status: 404 });
