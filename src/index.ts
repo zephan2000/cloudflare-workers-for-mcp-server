@@ -181,7 +181,8 @@ export default {
       });
 
       const proxyResponse = await fetch(proxyRequest);
-      console.log(`n8n response: ${proxyResponse.status} ${proxyResponse.statusText}`);
+      const body401 = proxyResponse.status === 401 ? await proxyResponse.clone().text() : "";
+      console.log(`n8n response: ${proxyResponse.status} ${proxyResponse.statusText}${body401 ? ` — ${body401.substring(0, 300)}` : ""}`);
       return proxyResponse;
     }
 
