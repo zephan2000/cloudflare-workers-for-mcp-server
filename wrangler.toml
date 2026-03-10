@@ -6,3 +6,8 @@ compatibility_date = "2025-01-01"
 # [[routes]]
 # pattern = "mcp.zephan.space/*"
 # zone_name = "zephan.space"
+
+
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id"

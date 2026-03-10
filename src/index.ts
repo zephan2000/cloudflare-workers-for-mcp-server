@@ -6,12 +6,12 @@
  */
 
 const N8N_MCP_URL = "https://webhook.zephan.space/mcp/create-client-page";
-const WORKER_BASE_URL = "https://mcp.zephan.space"; // ← change to your Worker's domain
+const WORKER_BASE_URL = "https://mcp-oauth-proxy.zephanw0ng23.workers.dev"; // ← change to your Worker's domain
 const PRODUCT_NAME = "Zephan MCP"; // ← change to your product name
 
-// In-memory store for auth codes and tokens (Workers KV would be better for production)
-const authCodes = new Map<string, { redirectUri: string; codeChallenge: string; clientId: string }>();
-const tokens = new Map<string, boolean>();
+interface Env {
+  KV: KVNamespace;
+}
 
 function generateRandom(length = 32): string {
   const bytes = crypto.getRandomValues(new Uint8Array(length));
@@ -28,7 +28,7 @@ async function verifyPKCE(verifier: string, challenge: string): Promise<boolean>
 }
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -75,11 +75,9 @@ export default {
 
       // Store params temporarily, keyed by a session ID in a hidden form field
       const sessionId = generateRandom(16);
-      authCodes.set(`session:${sessionId}`, {
-        redirectUri,
-        codeChallenge,
-        clientId,
-      });
+      await env.KV.put(`session:${sessionId}`, JSON.stringify({ redirectUri, codeChallenge, clientId }), { expirationTtl: 300 });
+
+      
 
       return new Response(consentPage(sessionId, state ?? "", PRODUCT_NAME), {
         headers: { "Content-Type": "text/html" },
@@ -93,9 +91,9 @@ export default {
       const state = body.get("state") as string;
       const approved = body.get("action") === "approve";
 
-      const session = authCodes.get(`session:${sessionId}`);
+      const session = JSON.parse(await env.KV.get(`session:${sessionId}`) ?? "null");
       if (!session) return new Response("Session expired", { status: 400 });
-      authCodes.delete(`session:${sessionId}`);
+      await env.KV.delete(`session:${sessionId}`);
 
       if (!approved) {
         const redirectUrl = new URL(session.redirectUri);
@@ -105,7 +103,7 @@ export default {
       }
 
       const code = generateRandom(24);
-      authCodes.set(`code:${code}`, session);
+      await env.KV.put(`code:${code}`, JSON.stringify(session), { expirationTtl: 300 });
 
       const redirectUrl = new URL(session.redirectUri);
       redirectUrl.searchParams.set("code", code);
@@ -124,7 +122,7 @@ export default {
         return Response.json({ error: "unsupported_grant_type" }, { status: 400 });
       }
 
-      const session = authCodes.get(`code:${code}`);
+      const session = JSON.parse(await env.KV.get(`code:${code}`) ?? "null");
       if (!session) {
         return Response.json({ error: "invalid_grant" }, { status: 400 });
       }
@@ -134,10 +132,10 @@ export default {
         return Response.json({ error: "invalid_grant", error_description: "PKCE verification failed" }, { status: 400 });
       }
 
-      authCodes.delete(`code:${code}`);
+      await env.KV.delete(`code:${code}`);
 
       const accessToken = generateRandom(32);
-      tokens.set(accessToken, true);
+      await env.KV.put(`token:${accessToken}`, "1", { expirationTtl: 86400 });
 
       return Response.json({
         access_token: accessToken,
@@ -151,7 +149,7 @@ export default {
       const authHeader = request.headers.get("Authorization");
       const token = authHeader?.replace("Bearer ", "");
 
-      if (!token || !tokens.has(token)) {
+      if (!token || !await env.KV.get(`token:${token}`)) {
         return new Response(JSON.stringify({ error: "unauthorized" }), {
           status: 401,
           headers: {
