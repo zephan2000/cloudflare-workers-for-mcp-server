@@ -1,0 +1,8 @@
+name = "mcp-oauth-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Deploy to a custom domain by adding a route:
+# [[routes]]
+# pattern = "mcp.zephan.space/*"
+# zone_name = "zephan.space"
