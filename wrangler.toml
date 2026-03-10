@@ -9,5 +9,5 @@ compatibility_date = "2025-01-01"
 
 
 [[kv_namespaces]]
-binding = "MCP_STORE"
+binding = "KV"
 id = "11a14ffe7aa2455e92fa2266530fb85e"
