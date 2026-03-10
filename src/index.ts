@@ -11,6 +11,8 @@ const PRODUCT_NAME = "Zephan MCP"; // ← change to your product name
 
 interface Env {
   KV: KVNamespace;
+  CF_ACCESS_CLIENT_ID: string;
+  CF_ACCESS_CLIENT_SECRET: string;
 }
 
 function generateRandom(length = 32): string {
@@ -170,6 +172,8 @@ export default {
       const proxyUrl = N8N_MCP_URL + (path.replace("/mcp", "") || "");
       const proxyHeaders = new Headers(request.headers);
       proxyHeaders.delete("Authorization");
+      proxyHeaders.set("CF-Access-Client-Id", env.CF_ACCESS_CLIENT_ID);
+      proxyHeaders.set("CF-Access-Client-Secret", env.CF_ACCESS_CLIENT_SECRET);
       const proxyRequest = new Request(proxyUrl, {
         method: request.method,
         headers: proxyHeaders,
